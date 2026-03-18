@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from clients.claude_client import ClaudeClient
+from clients.llm_client import LLMClient
 from models.schemas import Paper, PaperSummary, Author
 
 
@@ -11,8 +11,8 @@ class AnalysisAgent:
     Produces a structured PaperSummary with APA-style citation.
     """
 
-    def __init__(self):
-        self.claude = ClaudeClient()
+    def __init__(self, api_key: str | None = None):
+        self.llm = LLMClient(api_key=api_key)
 
     async def analyze(self, paper: Paper, topic: str) -> PaperSummary:
         author_names = ", ".join(a.name for a in paper.authors[:5])
@@ -36,7 +36,7 @@ Return a JSON object with these exact keys:
 
 Return ONLY the JSON, no markdown fences."""
 
-        raw = await self.claude.complete(prompt, max_tokens=800)
+        raw = await self.llm.complete(prompt, max_tokens=800)
         try:
             data = json.loads(raw)
         except Exception:

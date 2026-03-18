@@ -4,7 +4,7 @@ from typing import List
 
 from clients.semantic_scholar import SemanticScholarClient
 from clients.arxiv_client import ArxivClient
-from clients.claude_client import ClaudeClient
+from clients.llm_client import LLMClient
 from models.schemas import Paper, ResearchRequest
 from config import settings
 
@@ -17,10 +17,10 @@ class SearchAgent:
       2. Re-rank all retrieved papers by relevance.
     """
 
-    def __init__(self):
+    def __init__(self, api_key: str | None = None):
         self.ss = SemanticScholarClient(api_key=settings.semantic_scholar_api_key)
         self.arxiv = ArxivClient()
-        self.claude = ClaudeClient()
+        self.llm = LLMClient(api_key=api_key)
 
     async def search(self, request: ResearchRequest) -> List[Paper]:
         # Step 1 — expand query
@@ -62,7 +62,7 @@ class SearchAgent:
             "Return ONLY a JSON array of strings, e.g. [\"query1\", \"query2\", \"query3\"]"
         )
         try:
-            raw = await self.claude.complete(prompt, max_tokens=200)
+            raw = await self.llm.complete(prompt, max_tokens=200)
             return json.loads(raw)
         except Exception:
             return [topic]
@@ -83,7 +83,7 @@ class SearchAgent:
             "Return ONLY the JSON array."
         )
         try:
-            raw = await self.claude.complete(prompt, max_tokens=500)
+            raw = await self.llm.complete(prompt, max_tokens=500)
             indices: List[int] = json.loads(raw)
             return [papers[i] for i in indices if i < len(papers)][:max_papers]
         except Exception:

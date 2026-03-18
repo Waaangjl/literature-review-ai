@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from clients.claude_client import ClaudeClient
+from clients.llm_client import LLMClient
 from models.schemas import Paper, PaperSummary, Theme, LiteratureReview, Implications
 
 
@@ -13,8 +13,8 @@ class SynthesisAgent:
       3. generate_implications — derive theoretical / practical / policy implications
     """
 
-    def __init__(self):
-        self.claude = ClaudeClient()
+    def __init__(self, api_key: str | None = None):
+        self.llm = LLMClient(api_key=api_key)
 
     # ------------------------------------------------------------------
     # 1. Theme clustering
@@ -46,7 +46,7 @@ Return a JSON array:
 ]
 Return ONLY the JSON array."""
 
-        raw = await self.claude.complete(prompt, max_tokens=1500)
+        raw = await self.llm.complete(prompt, max_tokens=1500)
         try:
             themes_data = json.loads(raw)
             return [Theme(**t) for t in themes_data]
@@ -90,7 +90,7 @@ Write a rigorous literature review. Return JSON with these exact keys:
 
 Return ONLY the JSON, no markdown fences."""
 
-        raw = await self.claude.complete(prompt, max_tokens=3500)
+        raw = await self.llm.complete(prompt, max_tokens=3500)
         try:
             data = json.loads(raw)
         except Exception:
@@ -138,7 +138,7 @@ Generate implications in JSON:
 
 Be specific and actionable. Return ONLY JSON."""
 
-        raw = await self.claude.complete(prompt, max_tokens=1200)
+        raw = await self.llm.complete(prompt, max_tokens=1200)
         try:
             data = json.loads(raw)
             return Implications(**data)

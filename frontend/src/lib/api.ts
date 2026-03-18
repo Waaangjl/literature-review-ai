@@ -2,6 +2,19 @@ import { ProgressUpdate, ResearchResult } from "@/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
+function getStoredKey(): string {
+  if (typeof window === "undefined") return ""
+  return localStorage.getItem("llm_api_key") ?? ""
+}
+
+export function saveApiKey(key: string) {
+  localStorage.setItem("llm_api_key", key)
+}
+
+export function loadApiKey(): string {
+  return getStoredKey()
+}
+
 export async function streamResearch(
   topic: string,
   maxPapers: number,
@@ -11,9 +24,13 @@ export async function streamResearch(
   onComplete: (result: ResearchResult) => void,
   onError: (msg: string) => void
 ) {
+  const apiKey = getStoredKey()
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (apiKey) headers["X-API-Key"] = apiKey
+
   const res = await fetch(`${API_BASE}/api/research`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       topic,
       max_papers: maxPapers,
@@ -36,7 +53,6 @@ export async function streamResearch(
     if (done) break
     buffer += decoder.decode(value, { stream: true })
 
-    // Parse SSE lines
     const lines = buffer.split("\n")
     buffer = lines.pop() ?? ""
 
@@ -63,13 +79,7 @@ export async function exportMarkdown(result: ResearchResult): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(result),
   })
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `${result.topic.slice(0, 40)}.md`
-  a.click()
-  URL.revokeObjectURL(url)
+  download(await res.blob(), `${result.topic.slice(0, 40)}.md`)
 }
 
 export async function exportDocx(result: ResearchResult): Promise<void> {
@@ -78,11 +88,14 @@ export async function exportDocx(result: ResearchResult): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(result),
   })
-  const blob = await res.blob()
+  download(await res.blob(), `${result.topic.slice(0, 40)}.docx`)
+}
+
+function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = `${result.topic.slice(0, 40)}.docx`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(url)
 }

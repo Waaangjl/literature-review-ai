@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from agents.orchestrator import ResearchOrchestrator
 from formatters.markdown_formatter import to_markdown
 from formatters.word_exporter import to_docx
 from models.schemas import ResearchRequest, ResearchResult
-import json
 
 app = FastAPI(
     title="Literature Review AI",
@@ -18,20 +17,22 @@ app.add_middleware(
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-API-Key"],
 )
 
 orchestrator = ResearchOrchestrator()
 
 
 @app.post("/api/research")
-async def research(request: ResearchRequest):
+async def research(request: Request, body: ResearchRequest):
     """
     Stream SSE progress updates.
+    Optional header: X-API-Key — if provided, uses this key instead of server config.
     Final event has stage='complete' and data.result = full ResearchResult.
     """
+    api_key = request.headers.get("X-API-Key") or None
     return StreamingResponse(
-        orchestrator.run(request),
+        orchestrator.run(body, api_key=api_key),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -39,7 +40,6 @@ async def research(request: ResearchRequest):
 
 @app.post("/api/export/markdown")
 async def export_markdown(result: ResearchResult):
-    """Return a Markdown file of the full review."""
     md = to_markdown(result)
     filename = result.topic.replace(" ", "_")[:50]
     return Response(
@@ -51,7 +51,6 @@ async def export_markdown(result: ResearchResult):
 
 @app.post("/api/export/docx")
 async def export_docx(result: ResearchResult):
-    """Return a Word (.docx) file of the full review."""
     docx_bytes = to_docx(result)
     filename = result.topic.replace(" ", "_")[:50]
     return Response(
