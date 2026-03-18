@@ -13,6 +13,7 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./backend:/app
+      - ~/.claude:/root/.claude:ro   # mount claude auth so `claude -p` works
 
   frontend:
     build:
